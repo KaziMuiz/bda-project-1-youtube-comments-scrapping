@@ -10,6 +10,24 @@ A dataset of **2,000 public YouTube comments** (400 per video) from 5 videos abo
 
 A brand, retailer or reviewer who reads thousands of comments by hand cannot see what viewers actually worry about. This project turns comments into a clear picture of viewer concerns (price, durability, camera, battery, design, trust), so a marketing team knows what to address first. The **live tool** in `src/` does the same for any YouTube video: paste a link and see the result (see "Try it on any video" below).
 
+## How it works
+
+```mermaid
+flowchart LR
+    A["5 YouTube videos<br/>(Galaxy Z Fold 8)"] --> B["scrape_youtube.py<br/>2,000 comments"]
+    B --> C["data/youtube_comments.csv"]
+    C --> D["analysis.ipynb<br/>clean, statistics, charts,<br/>scaling experiment"]
+    D --> E["Findings and<br/>recommendation"]
+    F["Any YouTube link"] --> G["src/app.py<br/>live tool"]
+    G --> H["Topic shares and<br/>top comments"]
+```
+
+1. **Collect:** `scrape_youtube.py` uses the YouTube Data API to download 400 comments from each of 5 videos about the same product (2,000 comments), with likes, replies and dates.
+2. **Clean and check:** the notebook checks the record count, column types, missing values and duplicates, removes unusable rows, and adds simple columns such as comment length and topic flags (price, durability, camera, battery, design, trust).
+3. **Analyze:** it compares the five video types with summary statistics and charts, then states two evidence-based observations and one marketing recommendation.
+4. **Scale test:** it repeats the data up to about 2 million rows to measure how time and memory grow, and explains when a tool like Spark would be worth using.
+5. **Live tool:** `src/app.py` applies the same topic idea to any YouTube link you paste, so the analysis can be reused on new videos without opening the notebook.
+
 ## Data
 
 - **Source:** YouTube Data API v3 (`commentThreads.list`), collected on 24 Oct 2026 with `scrape_youtube.py`.
