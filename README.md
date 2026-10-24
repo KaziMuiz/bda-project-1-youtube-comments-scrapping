@@ -6,6 +6,10 @@ A dataset of **2,000 public YouTube comments** (400 per video) from 5 videos abo
 
 **Business question:** Do different types of review video attract different viewer concerns (price, durability, camera, battery, design, trust), and which concern should a brand address first?
 
+## What is it useful for?
+
+A brand, retailer or reviewer who reads thousands of comments by hand cannot see what viewers actually worry about. This project turns comments into a clear picture of viewer concerns (price, durability, camera, battery, design, trust), so a marketing team knows what to address first. The **live tool** in `src/` does the same for any YouTube video: paste a link and see the result (see "Try it on any video" below).
+
 ## Data
 
 - **Source:** YouTube Data API v3 (`commentThreads.list`), collected on 24 Oct 2026 with `scrape_youtube.py`.
@@ -48,6 +52,7 @@ One row = one top-level YouTube comment.
 | `data/youtube_comments_clean.csv` | Cleaned dataset with the derived columns (1,999 rows) |
 | `analysis.ipynb` | Quality checks, cleaning, statistics, charts, scaling experiment |
 | `figures/` | Charts saved by the notebook |
+| `src/app.py`, `src/index.html` | Live tool: paste any YouTube link and analyze its comments |
 
 ## Key findings
 
@@ -58,6 +63,17 @@ One row = one top-level YouTube comment.
 
 ![Likes by video type](figures/chart1_likes_by_type.png)
 ![Topics by video type](figures/chart2_topics_by_type.png)
+
+## Try it on any video (live tool)
+
+Paste a YouTube link, choose **Product mode** (review videos) or **Creator mode** (feedback on a creator's own video), and the tool shows the share of comments per topic, the most-liked examples, and a one-line summary. Spam-like comments are removed first, and the API key stays on the server.
+
+1. `py -m pip install -r requirements.txt`
+2. Make sure `.env` contains `YOUTUBE_API_KEY=your_key_here`
+3. `py src/app.py`
+4. Open http://127.0.0.1:5000
+
+The tool uses the same keyword topics as the notebook. It is an addition to the project, so the analysis above does not depend on it.
 
 ## Limitations
 
