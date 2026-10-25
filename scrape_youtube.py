@@ -25,7 +25,7 @@ except ImportError:
     pass
 
 try:
-    from google.colab import userdata
+    from google.colab import userdata # type: ignore     from google.colab import userdata  # type: ignore
     API_KEY = userdata.get("YOUTUBE_API_KEY")
 except Exception:
     API_KEY = os.environ.get("YOUTUBE_API_KEY")
