@@ -3,70 +3,187 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>YouTube Comment Analyzer</title>
+<title>Comment Insights for YouTube</title>
+<script>
+  /* set the theme before the page paints, to avoid a flash */
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("theme"); } catch (e) {}
+    if (!t) t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f6f7fb; --card: #ffffff; --text: #151a2d; --muted: #5d657d;
-    --line: #dfe3ee; --accent: #3355d1; --accent-text: #ffffff;
-    --bar: #3355d1; --bar-bg: #e6eaf6; --warn-bg: #fff4de; --err: #b3261e;
+    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f2f3f5; --text: #0f0f0f; --muted: #5f6368;
+    --line: #e4e6ea; --accent: #e60023; --accent-text: #ffffff; --accent-soft: #fdecee;
+    --shadow: 0 1px 2px rgba(15, 15, 15, .06), 0 6px 20px rgba(15, 15, 15, .05);
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #12141c; --card: #1b1e2a; --text: #eceef6; --muted: #9aa2bb;
-      --line: #2c3144; --accent: #6f8cff; --accent-text: #0e1220;
-      --bar: #6f8cff; --bar-bg: #2a2f45; --warn-bg: #3a3120; --err: #ff8a80;
-    }
+  :root[data-theme="dark"] {
+    --bg: #0f0f0f; --surface: #1a1a1b; --surface-2: #242425; --text: #f1f1f1; --muted: #a6a9ae;
+    --line: #2f3033; --accent: #ff3d57; --accent-text: #170305; --accent-soft: #34151a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 20px rgba(0, 0, 0, .3);
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5;
-  }
-  main { max-width: 820px; margin: 0 auto; padding: 32px 16px 64px; }
-  h1 { font-size: 1.7rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 24px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
-  label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: 6px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.55; transition: background .25s, color .25s; }
+  main { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 24px 16px 72px; }
+
+  /* ---------- top bar ---------- */
+  .top { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .logo { width: 40px; height: 28px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; flex: none; }
+  .logo svg { width: 14px; height: 14px; fill: #fff; margin-left: 2px; }
+  .brand { font-weight: 700; font-size: 1.25rem; letter-spacing: -.01em; }
+  .brand small { display: block; font-weight: 500; font-size: .8rem; color: var(--muted); letter-spacing: 0; margin-top: -2px; }
+  .icon-btn { margin-left: auto; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; display: grid; place-items: center; transition: background .2s; position: relative; overflow: hidden; }
+  .icon-btn.spin svg { animation: turn .5s ease; }
+  .icon-btn:hover { background: var(--surface-2); }
+  .icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+  :root[data-theme="dark"] .moon, :root:not([data-theme="dark"]) .sun { display: none; }
+
+  h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.2; letter-spacing: -.02em; }
+  .lead { margin: 0 0 22px; color: var(--muted); font-size: 1.05rem; max-width: 60ch; }
+
+  /* ---------- cards ---------- */
+  .card { background: color-mix(in srgb, var(--surface) 86%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); transition: box-shadow .25s; }
+  .card:hover { box-shadow: 0 2px 4px rgba(15, 15, 15, .08), 0 12px 32px rgba(15, 15, 15, .09); }
+  .reveal { animation: rise .5s ease backwards; animation-delay: var(--d, 0s); }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- form ---------- */
+  label, .lbl { display: block; margin-bottom: 6px; font-size: .82rem; font-weight: 600; color: var(--muted); }
+  .urlrow { display: flex; gap: 10px; }
   input[type=text], select {
-    width: 100%; padding: 11px 12px; font-size: 1rem; color: var(--text);
-    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    width: 100%; padding: 12px 14px; font: inherit; color: var(--text); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 12px; outline: none; transition: border-color .2s, box-shadow .2s;
   }
-  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 14px; }
-  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
-  button {
-    margin-top: 16px; padding: 12px 22px; font-size: 1rem; font-weight: 700; cursor: pointer;
-    background: var(--accent); color: var(--accent-text); border: 0; border-radius: 10px;
-  }
-  button:disabled { opacity: .6; cursor: wait; }
-  .error { color: var(--err); font-weight: 600; margin-top: 12px; }
-  .meta { color: var(--muted); font-size: .9rem; }
-  .summary { font-size: 1.1rem; font-weight: 600; margin: 8px 0 0; }
-  .topic { margin: 16px 0; }
-  .topic-head { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; }
-  .bar-bg { background: var(--bar-bg); border-radius: 8px; height: 12px; margin-top: 6px; overflow: hidden; }
-  .bar { background: var(--bar); height: 100%; border-radius: 8px; }
+  input[type=text]:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .go { position: relative; overflow: hidden; flex: none; padding: 0 26px; font: inherit; font-weight: 600; color: var(--bg); background: var(--text); border: 0; border-radius: 12px; cursor: pointer; transition: background .2s, color .2s, transform .18s, box-shadow .18s; }
+  .go:hover:not(:disabled) { background: var(--accent); color: var(--accent-text); transform: translateY(-2px); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 38%, transparent); }
+  .go:active:not(:disabled) { transform: translateY(0) scale(.98); }
+  .go:disabled { opacity: .65; cursor: wait; }
+  .opts { display: grid; grid-template-columns: 1.6fr 1fr .8fr; gap: 14px; margin-top: 16px; }
+  @media (max-width: 680px) { .opts { grid-template-columns: 1fr; } .urlrow { flex-direction: column; } .go { padding: 13px; } }
+  .seg { position: relative; display: flex; padding: 4px; gap: 4px; background: var(--surface-2); border-radius: 12px; }
+  .pill { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 6px); background: var(--surface); border-radius: 9px; box-shadow: 0 1px 4px rgba(0, 0, 0, .2); transition: left .3s cubic-bezier(.3, .9, .3, 1), width .3s cubic-bezier(.3, .9, .3, 1); z-index: 0; }
+  .seg button { position: relative; z-index: 1; overflow: hidden; flex: 1; padding: 8px 10px; font: inherit; font-size: .95rem; font-weight: 600; color: var(--muted); background: transparent; border: 0; border-radius: 9px; cursor: pointer; transition: color .25s; }
+  .seg button:hover { color: var(--text); }
+  @media (min-width: 681px) { .seg button { white-space: nowrap; } }
+  .seg button.on { color: var(--text); }
+  .error { margin-top: 14px; padding: 12px 14px; border-radius: 12px; font-weight: 600; color: #b3261e; background: #fdecea; border: 1px solid #f5c6c2; }
+  :root[data-theme="dark"] .error { color: #ffb4ab; background: #3a1816; border-color: #5c2a26; }
+
+  /* ---------- loading skeleton ---------- */
+  .sk-status { margin: 0 0 14px; font-weight: 600; color: var(--muted); }
+  .sk { height: 14px; margin-bottom: 12px; border-radius: 7px; background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 50%, var(--surface-2) 75%); background-size: 200% 100%; animation: sk 1.3s linear infinite; }
+  .sk.w60 { width: 60%; } .sk.w80 { width: 80%; } .sk.w40 { width: 40%; }
+  @keyframes sk { to { background-position: -200% 0; } }
+
+  /* ---------- results ---------- */
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 600; color: var(--accent); background: var(--accent-soft); }
+  .vchan { margin-left: 8px; font-size: .9rem; color: var(--muted); }
+  .vtitle { margin: 10px 0 0; font-size: 1.25rem; line-height: 1.35; letter-spacing: -.01em; }
+  .summary { margin: 14px 0 0; padding: 12px 14px; font-weight: 500; background: var(--surface-2); border-left: 4px solid var(--accent); border-radius: 4px 12px 12px 4px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 680px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { padding: 16px; background: color-mix(in srgb, var(--surface) 86%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); transition: transform .2s, box-shadow .2s; }
+  .stat:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(15, 15, 15, .12); }
+  .stat b { display: block; font-size: 1.7rem; line-height: 1.2; letter-spacing: -.02em; }
+  .stat span { font-size: .82rem; color: var(--muted); font-weight: 500; }
+
+  h2.sec { margin: 0 0 4px; font-size: 1.1rem; letter-spacing: -.01em; }
+  .sec-sub { margin: 0 0 18px; color: var(--muted); font-size: .9rem; }
+  .topic { margin: 0 -10px 8px; padding: 10px 10px 6px; border-radius: 12px; --c: #2563eb; transition: background .2s; }
+  .topic:hover { background: var(--surface-2); }
+  .topic:hover .track { height: 10px; }
+  .topic:hover .fill { filter: brightness(1.12); }
+  .topic.zero { opacity: .5; }
+  .thead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-weight: 600; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+  .tag { padding: 2px 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+  .val { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .val small { color: var(--muted); font-weight: 500; }
+  .track { margin-top: 8px; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--text) 9%, transparent); overflow: hidden; transition: height .2s; }
+  .fill { height: 100%; width: 0; border-radius: 999px; background: var(--c); transition: width .9s cubic-bezier(.2, .8, .2, 1); }
+
   details { margin-top: 8px; }
-  summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
-  .comment { border-left: 3px solid var(--line); padding: 4px 0 4px 12px; margin: 8px 0; font-size: .95rem; white-space: pre-wrap; }
-  .comment small { color: var(--muted); display: block; }
-  .note { background: var(--warn-bg); border-radius: 10px; padding: 12px 14px; font-size: .9rem; }
+  summary { cursor: pointer; color: var(--muted); font-size: .88rem; font-weight: 500; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  .comment { display: flex; gap: 12px; margin: 8px -8px 0; padding: 8px; border-radius: 10px; transition: background .2s; }
+  .comment:hover { background: var(--surface); }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; flex: none; color: var(--muted); }
+  .avatar svg { width: 20px; height: 20px; fill: currentColor; }
+  .ctext { white-space: pre-wrap; word-break: break-word; font-size: .95rem; }
+  .likes { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: .82rem; color: var(--muted); font-weight: 500; }
+  .likes svg { width: 15px; height: 15px; fill: currentColor; }
+
+  .action { display: flex; gap: 14px; align-items: flex-start; border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+  .action .ico { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none; }
+  .action .ico svg { width: 22px; height: 22px; fill: currentColor; }
+  .action h3 { margin: 0 0 2px; font-size: 1rem; }
+  .action p { margin: 0; color: var(--muted); }
+  .spamnote, .note { color: var(--muted); font-size: .85rem; }
+  .note { margin-top: 4px; }
+
+  /* ---------- living background and click effects ---------- */
+  .aurora { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .aurora i { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(70px); opacity: .2; animation: drift 24s ease-in-out infinite alternate; }
+  .aurora i:nth-child(1) { background: #ff4d63; left: -14vmax; top: -16vmax; }
+  .aurora i:nth-child(2) { background: #3b82f6; right: -18vmax; top: 18vh; opacity: .15; animation-duration: 30s; }
+  .aurora i:nth-child(3) { background: #f59e0b; left: 22vw; bottom: -26vmax; opacity: .12; animation-duration: 36s; }
+  :root[data-theme="dark"] .aurora i { opacity: .26; }
+  :root[data-theme="dark"] .aurora i:nth-child(2) { opacity: .2; }
+  :root[data-theme="dark"] .aurora i:nth-child(3) { opacity: .16; }
+  @keyframes drift { to { transform: translate(7vmax, 6vmax) scale(1.18); } }
+  #bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  #fx { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+  .ripple { position: absolute; border-radius: 50%; background: currentColor; opacity: .28; transform: scale(0); animation: ripple .6s ease-out forwards; pointer-events: none; }
+  @keyframes ripple { to { transform: scale(1); opacity: 0; } }
+  @keyframes turn { to { transform: rotate(360deg); } }
+  .go.ring { animation: ring .7s ease-out; }
+  @keyframes ring { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } to { box-shadow: 0 0 0 16px transparent; } }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<canvas id="bg" aria-hidden="true"></canvas>
+<canvas id="fx" aria-hidden="true"></canvas>
 <main>
-  <h1>YouTube Comment Analyzer</h1>
-  <p class="sub">Paste a video link. See what viewers are talking about.</p>
+  <header class="top">
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+    <div class="brand">Comment Insights<small>for YouTube videos</small></div>
+    <button class="icon-btn" id="theme" type="button" aria-label="Switch between light and dark theme">
+      <svg class="sun" viewBox="0 0 24 24"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM2 13h2a1 1 0 1 0 0-2H2a1 1 0 1 0 0 2zm18 0h2a1 1 0 1 0 0-2h-2a1 1 0 1 0 0 2zM11 2v2a1 1 0 1 0 2 0V2a1 1 0 1 0-2 0zm0 18v2a1 1 0 1 0 2 0v-2a1 1 0 1 0-2 0zM5.99 4.58a1 1 0 0 0-1.41 1.41l1.06 1.06a1 1 0 0 0 1.41-1.41L5.99 4.58zm12.37 12.37a1 1 0 0 0-1.41 1.41l1.06 1.06a1 1 0 0 0 1.41-1.41l-1.06-1.06zm1.06-10.96a1 1 0 0 0-1.41-1.41l-1.06 1.06a1 1 0 0 0 1.41 1.41l1.06-1.06zM7.05 18.36a1 1 0 0 0-1.41-1.41l-1.06 1.06a1 1 0 0 0 1.41 1.41l1.06-1.06z"/></svg>
+      <svg class="moon" viewBox="0 0 24 24"><path d="M12.1 22c5.5 0 9.9-4.5 9.9-10 0-.5-.4-.9-.9-.7-1 .3-2 .5-3.1.5-4.6 0-8.4-3.8-8.4-8.4 0-1 .2-2 .5-3 .1-.5-.2-.9-.7-.9C6.1 2 2 6.5 2 11.9 2 17.5 6.6 22 12.1 22z"/></svg>
+    </button>
+  </header>
 
-  <div class="card">
+  <h1>What are viewers really saying?</h1>
+  <p class="lead">Paste a YouTube link. Get the topics people talk about, the comments behind them, and a suggested next step.</p>
+
+  <section class="card">
     <label for="url">YouTube video link</label>
-    <input id="url" type="text" placeholder="https://www.youtube.com/watch?v=...">
-    <div class="row">
+    <div class="urlrow">
+      <input id="url" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.youtube.com/watch?v=...">
+      <button id="go" class="go" type="button">Analyze</button>
+    </div>
+    <div class="opts">
       <div>
-        <label for="mode">Mode</label>
-        <select id="mode">
-          <option value="product">Product review video</option>
-          <option value="creator">Creator feedback</option>
-        </select>
+        <span class="lbl" id="mode-lbl">Video type</span>
+        <div class="seg" role="group" aria-labelledby="mode-lbl">
+          <span class="pill" id="pill" aria-hidden="true"></span>
+          <button type="button" class="on" data-mode="product" aria-pressed="true">Product review</button>
+          <button type="button" data-mode="creator" aria-pressed="false">Creator feedback</button>
+        </div>
       </div>
       <div>
         <label for="order">Which comments</label>
@@ -84,101 +201,233 @@
         </select>
       </div>
     </div>
-    <button id="go">Analyze comments</button>
-    <div id="error" class="error" hidden></div>
-  </div>
+    <div id="error" class="error" role="alert" hidden></div>
+  </section>
+
+  <section id="scanner" class="card" hidden aria-live="polite">
+    <p class="sk-status" id="status">Connecting to YouTube...</p>
+    <div class="sk w80"></div><div class="sk"></div><div class="sk w60"></div><div class="sk w40"></div>
+  </section>
 
   <div id="results" hidden>
-    <div class="card">
-      <div class="meta" id="meta"></div>
-      <h2 id="title" style="margin:4px 0 0;font-size:1.15rem;"></h2>
+    <section class="card reveal">
+      <span class="chip" id="meta"></span><span class="vchan" id="chan"></span>
+      <h2 class="vtitle" id="title"></h2>
       <p class="summary" id="summary"></p>
-    </div>
-    <div class="card">
+    </section>
+    <div class="stats" id="stats"></div>
+    <section class="card reveal" style="--d:.2s">
+      <h2 class="sec">What viewers talk about</h2>
+      <p class="sec-sub">Share of comments that mention each topic. One comment can mention several.</p>
       <div id="topics"></div>
-    </div>
-    <div class="note">
-      Topics are found with keyword rules, so sarcasm and misspellings can be missed.
-      A comment can belong to more than one topic. Spam-like comments are removed before counting.
-    </div>
+    </section>
+    <section class="card action reveal" style="--d:.3s" id="action" hidden>
+      <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg></div>
+      <div><h3>Suggested next step</h3><p id="actiontext"></p></div>
+    </section>
+    <p class="note">Topics are found with keyword rules, so sarcasm and misspellings can be missed. Spam-like comments are removed before counting.</p>
   </div>
 </main>
 
 <script>
 const $ = (id) => document.getElementById(id);
+const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+const COLORS = {
+  price: "#2563eb", durability: "#dc2626", camera: "#7c3aed", battery: "#059669", design: "#d97706",
+  performance: "#0891b2", trust: "#db2777", requests: "#2563eb", questions: "#0891b2", praise: "#059669",
+  complaints: "#dc2626", av_quality: "#d97706",
+};
+const FALLBACK = ["#2563eb", "#dc2626", "#7c3aed", "#059669", "#d97706", "#0891b2", "#db2777"];
+
+/* Rule-based next step for the top topic (a suggestion, not a prediction) */
+const ACTIONS = {
+  price: "Many viewers are talking about price. Test value messaging such as trade-in offers or bundles, and compare how much price comes up afterwards.",
+  durability: "Durability is a leading worry. Show proof such as test results or warranty details, and pin an answer to the most common durability question.",
+  camera: "The camera is a main talking point. Add sample photos and videos, and address the most-liked camera criticism directly.",
+  battery: "Battery and charging come up a lot. Share real-world battery results and charging times instead of only specs.",
+  design: "Viewers focus on design and size. Show size comparisons and everyday use, and answer the most-liked design comments.",
+  performance: "Performance and software lead the conversation. Cover update plans and real speed tests, and reply to the top software questions.",
+  trust: "Viewers doubt whether this is sponsored or biased. State any sponsorship clearly, and explain how the review was done.",
+  requests: "Viewers are asking for specific videos. Turn the most-liked requests into your next video ideas.",
+  questions: "Viewers have many questions. Answer the most-liked ones in a pinned comment, a FAQ or a follow-up video.",
+  praise: "Viewers are happy. Note what they praise and repeat it, and quote the best comments in your promotion.",
+  complaints: "Complaints are the leading theme. Read the most-liked ones and fix the problems that repeat.",
+  av_quality: "Viewers mention audio, video or editing. Check those points first, since they are often quick wins.",
+};
+
+const THUMB = '<svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>';
+const PERSON = '<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+
+let mode = "product";
+let busy = false;
+let statusTimer = null;
+
+/* ---------- theme ---------- */
+$("theme").addEventListener("click", () => {
+  const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("theme", next); } catch (e) {}
+  Live.refreshColors();
+  if (!reduce) { $("theme").classList.add("spin"); setTimeout(() => $("theme").classList.remove("spin"), 520); }
+});
+
+/* ---------- mode switch ---------- */
+document.querySelectorAll(".seg button").forEach((b) => {
+  b.addEventListener("click", () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll(".seg button").forEach((x) => {
+      const on = x === b;
+      x.classList.toggle("on", on);
+      x.setAttribute("aria-pressed", String(on));
+    });
+    movePill();
+  });
+});
+
+/* ---------- loading state ---------- */
+const STATUS = ["Connecting to YouTube...", "Reading comments...", "Filtering spam...", "Matching topics...", "Building your report..."];
+function startScanner() {
+  let i = 0;
+  $("status").textContent = STATUS[0];
+  $("scanner").hidden = false;
+  Live.setBoost(3.2);
+  statusTimer = setInterval(() => { i = (i + 1) % STATUS.length; $("status").textContent = STATUS[i]; }, 1100);
+}
+function stopScanner() { clearInterval(statusTimer); $("scanner").hidden = true; Live.setBoost(1); }
+
+/* ---------- helpers ---------- */
+function showError(msg) { $("error").textContent = msg; $("error").hidden = false; }
+function hideError() { $("error").hidden = true; }
+
+function countUp(el, to, decimals, suffix) {
+  const fmt = (v) => v.toFixed(decimals) + suffix;
+  if (reduce || to === 0) { el.textContent = fmt(to); return; }
+  const start = performance.now(), dur = 900;
+  (function tick(now) {
+    const p = Math.min((now - start) / dur, 1);
+    el.textContent = fmt(to * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(tick); else el.textContent = fmt(to);
+  })(start);
+}
+
+/* ---------- main action ---------- */
 async function analyze() {
+  if (busy) return;
   const url = $("url").value.trim();
-  $("error").hidden = true;
+  hideError();
   $("results").hidden = true;
   if (!url) { showError("Paste a YouTube link first."); return; }
 
-  const params = new URLSearchParams({
-    url, mode: $("mode").value, order: $("order").value, limit: $("limit").value,
-  });
+  const params = new URLSearchParams({ url, mode, order: $("order").value, limit: $("limit").value });
+  busy = true;
   $("go").disabled = true;
-  $("go").textContent = "Reading comments...";
+  $("go").textContent = "Analyzing...";
+  startScanner();
+  burstFrom($("go"), 12);
   try {
     const res = await fetch("/api/analyze?" + params.toString());
     const data = await res.json();
     if (!res.ok) { showError(data.error || "Something went wrong."); return; }
     render(data);
   } catch (e) {
-    showError("Could not reach the server. Is app.py running?");
+    showError("Something went wrong. Check that app.py is still running.");
   } finally {
+    busy = false;
     $("go").disabled = false;
-    $("go").textContent = "Analyze comments";
+    $("go").textContent = "Analyze";
+    stopScanner();
   }
 }
 
-function showError(msg) {
-  $("error").textContent = msg;
-  $("error").hidden = false;
-}
-
 function render(d) {
-  $("meta").textContent = d.mode_label + " · " + d.channel + " · " + d.analyzed + " comments analyzed";
+  $("meta").textContent = d.mode_label;
+  $("chan").textContent = d.channel;
   $("title").textContent = d.title;
   $("summary").textContent = d.summary;
+
+  const found = d.topics.filter((t) => t.count > 0);
+  const stats = [
+    ["Comments analyzed", d.analyzed, 0, ""],
+    ["Spam removed", d.spam_removed, 0, ""],
+    ["Topics detected", found.length, 0, ""],
+    ["Top topic share", found.length ? found[0].share : 0, 1, "%"],
+  ];
+  const sbox = $("stats");
+  sbox.replaceChildren();
+  stats.forEach(([label, val, dec, suf], i) => {
+    const s = document.createElement("div");
+    s.className = "stat reveal";
+    s.style.setProperty("--d", (0.08 + i * 0.06) + "s");
+    const b = document.createElement("b");
+    const l = document.createElement("span");
+    l.textContent = label;
+    s.append(b, l);
+    sbox.append(s);
+    countUp(b, val, dec, suf);
+  });
 
   const box = $("topics");
   box.replaceChildren();
   const max = Math.max(...d.topics.map((t) => t.share), 1);
+  const fills = [];
 
-  d.topics.forEach((t) => {
+  d.topics.forEach((t, i) => {
     const wrap = document.createElement("div");
-    wrap.className = "topic";
+    wrap.className = "topic" + (t.count === 0 ? " zero" : "");
+    wrap.style.setProperty("--c", COLORS[t.topic] || FALLBACK[i % FALLBACK.length]);
 
     const head = document.createElement("div");
-    head.className = "topic-head";
+    head.className = "thead";
+    const dot = document.createElement("span");
+    dot.className = "dot";
     const name = document.createElement("span");
     name.textContent = t.label;
+    head.append(dot, name);
+    if (i === 0 && t.count > 0) {
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = "Top topic";
+      head.append(tag);
+    }
     const val = document.createElement("span");
-    val.textContent = t.share + "% (" + t.count + ")";
-    head.append(name, val);
+    val.className = "val";
+    val.textContent = t.share + "% ";
+    const small = document.createElement("small");
+    small.textContent = "(" + t.count + (t.count === 1 ? " comment)" : " comments)");
+    val.append(small);
+    head.append(val);
 
-    const barBg = document.createElement("div");
-    barBg.className = "bar-bg";
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    bar.style.width = (t.share / max * 100) + "%";
-    barBg.append(bar);
-
-    wrap.append(head, barBg);
+    const track = document.createElement("div");
+    track.className = "track";
+    const fill = document.createElement("div");
+    fill.className = "fill";
+    track.append(fill);
+    fills.push([fill, t.share / max * 100]);
+    wrap.append(head, track);
 
     if (t.top_comments.length) {
       const det = document.createElement("details");
       const sum = document.createElement("summary");
-      sum.textContent = "Most-liked comments on this topic";
+      sum.textContent = "Most-liked comments";
       det.append(sum);
       t.top_comments.forEach((c) => {
-        const p = document.createElement("div");
-        p.className = "comment";
-        p.textContent = c.text;
-        const small = document.createElement("small");
-        small.textContent = c.likes + " likes";
-        p.append(small);
-        det.append(p);
+        const row = document.createElement("div");
+        row.className = "comment";
+        const av = document.createElement("div");
+        av.className = "avatar";
+        av.innerHTML = PERSON;           /* static icon, no user text */
+        const body = document.createElement("div");
+        const txt = document.createElement("div");
+        txt.className = "ctext";
+        txt.textContent = c.text;        /* user text is always set as text */
+        const likes = document.createElement("div");
+        likes.className = "likes";
+        likes.innerHTML = THUMB;         /* static icon, no user text */
+        likes.append(document.createTextNode(String(c.likes)));
+        body.append(txt, likes);
+        row.append(av, body);
+        det.append(row);
       });
       wrap.append(det);
     }
@@ -187,15 +436,207 @@ function render(d) {
 
   if (d.spam_removed) {
     const s = document.createElement("div");
-    s.className = "meta";
+    s.className = "spamnote";
     s.textContent = d.spam_removed + (d.spam_removed === 1 ? " spam-like comment was" : " spam-like comments were") + " removed before counting.";
     box.append(s);
   }
+
+  const top = found[0];
+  $("action").hidden = !(top && ACTIONS[top.topic]);
+  if (top && ACTIONS[top.topic]) $("actiontext").textContent = ACTIONS[top.topic];
+
   $("results").hidden = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fills.forEach(([el, pct]) => { el.style.width = pct + "%"; });
+  }));
+  $("results").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  Live.burst(window.innerWidth / 2, window.innerHeight * 0.32, 26);
 }
 
 $("go").addEventListener("click", analyze);
 $("url").addEventListener("keydown", (e) => { if (e.key === "Enter") analyze(); });
+
+/* ---------- segmented control: sliding highlight ---------- */
+function movePill() {
+  const on = document.querySelector(".seg button.on"), pill = $("pill");
+  if (!on || !pill) return;
+  pill.style.left = on.offsetLeft + "px";
+  pill.style.width = on.offsetWidth + "px";
+}
+movePill();
+window.addEventListener("resize", movePill);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(movePill);
+
+/* ---------- ripple on every button ---------- */
+document.addEventListener("pointerdown", (e) => {
+  const btn = e.target.closest && e.target.closest("button");
+  if (!btn || btn.disabled || reduce) return;
+  const r = btn.getBoundingClientRect();
+  const size = Math.max(r.width, r.height) * 2;
+  const dot = document.createElement("span");
+  dot.className = "ripple";
+  dot.style.width = dot.style.height = size + "px";
+  dot.style.left = (e.clientX - r.left - size / 2) + "px";
+  dot.style.top = (e.clientY - r.top - size / 2) + "px";
+  btn.append(dot);
+  dot.addEventListener("animationend", () => dot.remove());
+  if (btn.id === "go") {
+    btn.classList.remove("ring"); void btn.offsetWidth; btn.classList.add("ring");
+  }
+});
+
+function burstFrom(el, n) {
+  const r = el.getBoundingClientRect();
+  Live.burst(r.left + r.width / 2, r.top + r.height / 2, n);
+}
+
+/* ---------- living background: drifting comment bubbles, likes, hearts ---------- */
+const Live = (function () {
+  const noop = { burst() {}, setBoost() {}, refreshColors() {} };
+  const bg = $("bg"), fx = $("fx");
+  const bctx = bg.getContext && bg.getContext("2d");
+  const fctx = fx.getContext && fx.getContext("2d");
+  if (!bctx || !fctx || typeof Path2D === "undefined") return noop;
+
+  const P = {
+    thumb: new Path2D("M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"),
+    heart: new Path2D("M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"),
+    play: new Path2D("M8 5v14l11-7z"),
+  };
+  const css = getComputedStyle(document.documentElement);
+  const col = { accent: "#e60023", muted: "#5f6368" };
+  const SPARK = ["#e60023", "#2563eb", "#d97706", "#059669", "#7c3aed"];
+  let W = 0, H = 0, dpr = 1, items = [], sparks = [], boost = 1, boostTarget = 1;
+  const mouse = { x: -999, y: -999 };
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+  function refreshColors() {
+    col.accent = css.getPropertyValue("--accent").trim() || col.accent;
+    col.muted = css.getPropertyValue("--muted").trim() || col.muted;
+    if (reduce) draw(false);
+  }
+
+  function rr(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function spawn(initial) {
+    const kinds = ["bubble", "bubble", "bubble", "bubble", "thumb", "heart", "play"];
+    const kind = kinds[Math.floor(Math.random() * kinds.length)];
+    return {
+      kind, w: kind === "bubble" ? rand(96, 160) : rand(16, 30), lines: 1 + Math.floor(rand(0, 3)),
+      x: rand(0, W), y: initial ? rand(0, H) : H + rand(40, 180),
+      vy: -rand(0.15, 0.42), ph: rand(0, 6.28), rot: rand(-0.2, 0.2), a: rand(0.12, 0.24),
+      tone: Math.random() < 0.35 ? "accent" : "muted",
+    };
+  }
+
+  function drawItem(it) {
+    const fade = clamp(it.y / 160, 0, 1) * clamp((H + 80 - it.y) / 140, 0, 1);
+    if (fade <= 0) return;
+    const c = bctx, color = it.tone === "accent" ? col.accent : col.muted;
+    c.save();
+    c.translate(it.x, it.y);
+    c.rotate(it.rot + Math.sin(it.ph) * 0.05);
+    c.globalAlpha = it.a * fade;
+    c.fillStyle = color; c.strokeStyle = color; c.lineWidth = 1.4;
+    if (it.kind === "bubble") {
+      const w = it.w, h = 24 + it.lines * 11;
+      rr(c, -w / 2, -h / 2, w, h, 12); c.stroke();
+      c.globalAlpha = it.a * fade * 0.55;
+      c.beginPath(); c.arc(-w / 2 + 17, -h / 2 + 17, 7, 0, 6.283); c.fill();
+      for (let i = 0; i < it.lines; i++) {
+        const lw = (i === it.lines - 1 && it.lines > 1 ? 0.4 : 0.66) * (w - 50);
+        rr(c, -w / 2 + 31, -h / 2 + 12 + i * 11, lw, 5, 2.5); c.fill();
+      }
+    } else {
+      const k = it.w / 24;
+      c.scale(k, k); c.translate(-12, -12);
+      c.fill(P[it.kind]);
+    }
+    c.restore();
+  }
+
+  function draw(step) {
+    bctx.clearRect(0, 0, W, H);
+    for (const it of items) {
+      if (step) {
+        it.ph += 0.012 * boost; it.y += it.vy * boost; it.x += Math.sin(it.ph) * 0.3;
+        const dx = it.x - mouse.x, dy = it.y - mouse.y, d2 = dx * dx + dy * dy;
+        if (d2 < 15000 && d2 > 0) {
+          const d = Math.sqrt(d2), f = (1 - d / 122) * 1.8;
+          it.x += dx / d * f; it.y += dy / d * f;
+        }
+        if (it.y < -90) Object.assign(it, spawn(false));
+        if (it.x < -120) it.x = W + 100; else if (it.x > W + 120) it.x = -100;
+      }
+      drawItem(it);
+    }
+  }
+
+  function drawSparks() {
+    if (!sparks.length && !drawSparks.dirty) return;
+    fctx.clearRect(0, 0, W, H);
+    drawSparks.dirty = sparks.length > 0;
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.x += s.vx; s.y += s.vy; s.vy += 0.12; s.vx *= 0.985; s.rot += s.vr; s.life -= s.decay;
+      if (s.life <= 0) { sparks.splice(i, 1); continue; }
+      fctx.save();
+      fctx.translate(s.x, s.y); fctx.rotate(s.rot);
+      fctx.globalAlpha = Math.min(1, s.life * 1.6); fctx.fillStyle = s.color;
+      if (s.kind === "dot") { fctx.beginPath(); fctx.arc(0, 0, s.size / 4, 0, 6.283); fctx.fill(); }
+      else { const k = s.size / 24; fctx.scale(k, k); fctx.translate(-12, -12); fctx.fill(P[s.kind]); }
+      fctx.restore();
+    }
+  }
+
+  function loop() {
+    boost += (boostTarget - boost) * 0.06;
+    draw(true);
+    drawSparks();
+    requestAnimationFrame(loop);
+  }
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    [bg, fx].forEach((cv) => { cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + "px"; cv.style.height = H + "px"; });
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = clamp(Math.round(W * H / 52000), 10, 26);
+    items = Array.from({ length: n }, () => spawn(true));
+    if (reduce) draw(false);
+  }
+
+  function burst(x, y, count) {
+    if (reduce) return;
+    const kinds = ["thumb", "heart", "play", "dot", "dot"];
+    for (let i = 0; i < count; i++) {
+      const ang = -Math.PI / 2 + rand(-1.15, 1.15), sp = rand(3, 8);
+      sparks.push({
+        x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, rot: rand(-1, 1), vr: rand(-0.1, 0.1),
+        size: rand(12, 22), life: 1, decay: rand(0.012, 0.02),
+        kind: kinds[Math.floor(Math.random() * kinds.length)], color: SPARK[Math.floor(Math.random() * SPARK.length)],
+      });
+    }
+  }
+
+  document.addEventListener("pointermove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  document.documentElement.addEventListener("pointerleave", () => { mouse.x = mouse.y = -999; });
+  window.addEventListener("resize", resize);
+  refreshColors();
+  resize();
+  if (!reduce) requestAnimationFrame(loop);
+  return { burst, setBoost(v) { boostTarget = v; }, refreshColors };
+})();
 </script>
 </body>
 </html>
