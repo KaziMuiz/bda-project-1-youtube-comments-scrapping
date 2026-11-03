@@ -107,3 +107,39 @@ The tool uses the same keyword topics as the notebook. It is an addition to the 
    (`.env` is excluded from the repository, so the key stays private.)
 3. Collect the comments: `py scrape_youtube.py`
 4. Open `analysis.ipynb` and run all cells.
+
+## Sentiment analysis
+
+Each of the 1,999 cleaned comments was labelled positive, neutral or negative with VADER, a rule-based sentiment tool built for short social-media text. A comment is positive if its compound score is 0.05 or higher, negative if it is -0.05 or lower, and neutral otherwise. The labels are stored in `sentiment_score` and `sentiment` in `data/youtube_comments_clean.csv`.
+
+| Sentiment | Comments | Share |
+|-----------|----------|-------|
+| Positive  | 976      | 48.8% |
+| Neutral   | 597      | 29.9% |
+| Negative  | 426      | 21.3% |
+
+Charts: `figures/chart6_sentiment_split.png` and `figures/chart7_topic_sentiment.png`.
+
+### Sentiment by topic
+
+| Topic      | Comments | Positive | Neutral | Negative |
+|------------|----------|----------|---------|----------|
+| Design     | 510      | 56.5%    | 19.2%   | 24.3%    |
+| Price      | 181      | 55.8%    | 14.4%   | 29.8%    |
+| Durability | 136      | 45.6%    | 23.5%   | 30.9%    |
+| Camera     | 114      | 54.4%    | 17.5%   | 28.1%    |
+| Battery    | 58       | 60.3%    | 13.8%   | 25.9%    |
+| Trust      | 25       | 32.0%    | 16.0%   | 52.0%    |
+
+### Observations
+
+1. Design is the most discussed topic (510 of 1,999 comments) and more than half of those comments are positive (56.5%).
+2. Durability has the lowest positive share (45.6%) and the highest negative share (30.9%) among the well-sampled topics. Price (29.8% negative) and camera (28.1%) are also above the overall 21.3% negative rate.
+
+### Marketing recommendation
+
+Lead campaigns with the design, because it is the topic people talk about most and like most. Answer the durability and price worries directly, for example with durability-test content and clear pricing or trade-in offers, because these are where negative comments are concentrated.
+
+### Limitations
+
+VADER scores the whole comment, not the topic inside it, so a negative comment that mentions price may really be complaining about something else. It also misses sarcasm. The trust topic has only 25 comments, so its 52% negative share is not reliable. A scalable approach would use a trained model instead of fixed rules.
